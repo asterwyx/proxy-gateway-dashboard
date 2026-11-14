@@ -1,0 +1,129 @@
+// Product names (Tailscale, mihomo, OxiDNS, MetaCubeXD) are intentionally not translated.
+export const messages = {
+  zh: {
+    title: '网关 · 控制面板',
+    loginTitle: '登录 · 网关控制面板',
+    brand: '网关', brandSub: ' / 控制面板',
+    theme: '主题', logout: '退出', login: '登录', show: '显示', hide: '隐藏',
+    topPill: '单 Pod · 本地控制面',
+    eyebrow: 'PROXY GATEWAY',
+    h1a: '网络的每一处，', h1b: '尽在此处。',
+    subtitle: '代理、域名解析与 tailnet，一览其运行状态。',
+    refreshing: '正在读取本地服务…', refresh: '刷新状态', updated: '更新于',
+    refreshFailed: '刷新失败 · 数据可能已过期',
+    kpiConnections: '当前连接', kpiDownload: '累计下载', kpiUpload: '累计上传', kpiOnline: 'tailnet 在线节点',
+    kpiConnectionsHint: 'mihomo · 等待响应', kpiTrafficHint: 'mihomo 本次运行累计',
+    tailnetHint: '含本机 · 等待响应', tailnetUnavailable: 'tailnet 名称不可用 · 含本机',
+    services: '服务入口', servicesHint: 'HTTPS 子域名 · 凭据留在服务端',
+    mihomoDesc: '规则与代理节点，交给专业的面板。', openMihomo: '打开 MetaCubeXD',
+    oxidnsDesc: '查看解析配置与 DNS 服务状态。', openOxidns: '打开 DNS 管理',
+    tailscaleDesc: '读取本地 tailscaled 的真实状态。', viewTailscale: '查看 tailnet 控制',
+    mgmtEyebrow: 'TAILSCALE / LOCAL API', mgmtTitle: '有限控制，更清晰的边界。', mgmtPill: '只开放 3 项偏好设置',
+    mgmtNote: '每次操作都需确认；不提供 auth key、exit node、任意路由或 DNS 设置。',
+    wantRunning: '接入 tailnet', wantRunningDesc: '控制本机是否运行 Tailscale；关闭可能中断当前管理连接。',
+    shieldsUp: '屏蔽传入连接', shieldsUpDesc: '启用 ShieldsUp，拒绝来自 tailnet 的入站连接。',
+    advertise: '发布 fake-IP 路由', advertiseDesc: '仅发布 {cidr}，需要 tailnet 管理员审批。',
+    prefsNote: '偏好来自 LocalAPI；路由“已发布”不等同于管理员已批准。',
+    prefsBusy: '正在提交修改，请勿重复操作…', prefsUnavailable: '无法读取偏好设置，操作暂不可用。',
+    routeWarning: '当前还有其它路由：{routes}。操作此开关会替换整个发布列表。',
+    nodes: 'tailnet 节点', nodesDesc: 'tailscaled 当前可见的节点，包含本机。',
+    nodeCount: '{count} 个可见节点', nodesUnavailable: '数据不可用',
+    noNodes: '当前没有可见节点。', nodesLoading: '正在读取节点…', pending: '等待响应',
+    colName: '节点名称', colIp: 'tailnet 地址', colState: '状态', colOs: '系统', colSeen: '最近在线', colTraffic: '接收 / 发送',
+    online: '在线', offline: '离线', self: '本机', currentOnline: '当前在线', notAvailable: '—', unnamed: '未命名节点',
+    loading: '读取中', available: '可用', partial: '部分不可用',
+    statusUnknown: 'HTTP 状态未知', localState: '本机状态：{state}', daemonUnreachable: '本地 tailscaled 暂不可达。',
+    partialNotice: '部分服务状态不可用，已有数据仍可查看。', tsNotice: 'Tailscale 提示：{items}',
+    errorStatus: '状态异常', staleNotice: '当前保留的数值可能已过期。',
+    authExpired: '身份验证失效，请重新载入页面。', tooMany: '认证重试过于频繁，请稍后再试。', panelUnavailable: '面板暂时无法读取状态。',
+    confirmTitle: '确认{action}？', actionEnable: '开启', actionDisable: '关闭',
+    actWantRunning: '接入 tailnet', actShieldsUp: '入站屏蔽', actAdvertise: '路由发布',
+    confirmEyebrow: '确认 tailnet 修改', confirmNote: '此操作直接修改本机 Tailscale 偏好，可能影响连接。确认后才会提交。',
+    cancel: '取消', apply: '确认修改', submitting: '正在提交修改，请勿重复操作…',
+    prefsUpdated: '偏好设置已更新，正在核对服务状态。', opFailed: '操作失败',
+    enableWantRunning: '开启本机 Tailscale，尝试重新接入 tailnet。', disableWantRunning: '关闭本机 Tailscale。这可能立即断开你当前的管理连接。',
+    enableShields: '开启入站屏蔽，tailnet 中的其它设备将无法主动连接本机。', disableShields: '关闭入站屏蔽，允许符合 tailnet ACL 的入站连接。',
+    enableRoutes: '将全部发布路由替换为 [{cidr}]；还需管理员批准，并在主机侧正确配置转发。', disableRoutes: '将全部发布路由替换为空列表 []；其它已发布路由也会被移除。',
+    footer: '网关控制面 · 无外部 CDN / 无遥测', footerHint: '状态每 15 秒刷新 · 流量为累计值，不是速率',
+    loginSubtitle: '代理、域名解析与 tailnet，一处登录，处处可见。',
+    loginPoints: '登录后可访问的服务', pointMihomo: '规则、节点与流量', pointOxidns: '解析与分流状态', pointTailscale: 'tailnet 与节点',
+    signIn: 'SIGN IN', loginHeading: '登录控制面板',
+    loginHint: '使用管理员账号继续。登录后可在本域名的子服务间共享会话。',
+    username: '用户名', password: '密码', badCredentials: '用户名或密码不正确，请重试。',
+    loginSubmit: '登录', loginNote: '凭据只与会话 Cookie 一起使用，不会写入地址栏。',
+    sessionLife: '会话有效期 8 小时', language: '语言',
+  },
+  en: {
+    title: 'Gateway · Control Panel',
+    loginTitle: 'Sign in · Gateway Control Panel',
+    brand: 'Gateway', brandSub: ' / Control Panel',
+    theme: 'Theme', logout: 'Sign out', login: 'Sign in', show: 'Show', hide: 'Hide',
+    topPill: 'Single pod · local control plane',
+    eyebrow: 'PROXY GATEWAY',
+    h1a: 'Every part of the network, ', h1b: 'in one place.',
+    subtitle: 'Proxy, DNS, and tailnet status at a glance.',
+    refreshing: 'Reading local services…', refresh: 'Refresh', updated: 'Updated',
+    refreshFailed: 'Refresh failed · data may be stale',
+    kpiConnections: 'Active connections', kpiDownload: 'Total download', kpiUpload: 'Total upload', kpiOnline: 'Tailnet nodes online',
+    kpiConnectionsHint: 'mihomo · waiting', kpiTrafficHint: 'mihomo since start',
+    tailnetHint: 'including this node · waiting', tailnetUnavailable: 'Tailnet name unavailable · including this node',
+    services: 'Services', servicesHint: 'HTTPS subdomains · credentials stay server-side',
+    mihomoDesc: 'Rules and proxy nodes, in the dedicated panel.', openMihomo: 'Open MetaCubeXD',
+    oxidnsDesc: 'View resolver configuration and DNS status.', openOxidns: 'Open DNS management',
+    tailscaleDesc: 'Live state of the local daemon.', viewTailscale: 'View tailnet controls',
+    mgmtEyebrow: 'TAILSCALE / LOCAL API', mgmtTitle: 'Narrow controls, clear boundaries.', mgmtPill: 'Only 3 preferences exposed',
+    mgmtNote: 'Every change needs confirmation. Auth keys, exit nodes, arbitrary routes and DNS settings are unavailable.',
+    wantRunning: 'Connect to tailnet', wantRunningDesc: 'Whether Tailscale runs on this node; disabling may cut your current management session.',
+    shieldsUp: 'Block incoming connections', shieldsUpDesc: 'Enable ShieldsUp to reject inbound connections from the tailnet.',
+    advertise: 'Advertise fake-IP route', advertiseDesc: 'Publishes only {cidr}; a tailnet admin must approve it.',
+    prefsNote: 'Preferences come from LocalAPI. An advertised route is not an approved route.',
+    prefsBusy: 'Submitting changes, please wait…', prefsUnavailable: 'Preferences unavailable; controls are disabled.',
+    routeWarning: 'Other routes are also advertised: {routes}. This switch replaces the whole advertised list.',
+    nodes: 'Tailnet nodes', nodesDesc: 'Nodes currently visible to the local daemon, including this node.',
+    nodeCount: '{count} visible nodes', nodesUnavailable: 'Data unavailable',
+    noNodes: 'No visible nodes.', nodesLoading: 'Reading nodes…', pending: 'Waiting',
+    colName: 'Node', colIp: 'Tailnet address', colState: 'State', colOs: 'OS', colSeen: 'Last seen', colTraffic: 'Received / sent',
+    online: 'Online', offline: 'Offline', self: 'this node', currentOnline: 'Online now', notAvailable: '—', unnamed: 'Unnamed node',
+    loading: 'Reading', available: 'Available', partial: 'Partially unavailable',
+    statusUnknown: 'HTTP status unknown', localState: 'Local state: {state}', daemonUnreachable: 'Local daemon unreachable.',
+    partialNotice: 'Some service states are unavailable; existing data is still shown.', tsNotice: 'Tailscale notice: {items}',
+    errorStatus: 'Status error', staleNotice: 'Displayed values may be stale.',
+    authExpired: 'Session expired. Reload the page.', tooMany: 'Too many authentication attempts. Try again later.', panelUnavailable: 'The panel cannot read status right now.',
+    confirmTitle: '{action}?', actionEnable: 'Enable', actionDisable: 'Disable',
+    actWantRunning: 'tailnet connection', actShieldsUp: 'inbound blocking', actAdvertise: 'route advertisement',
+    confirmEyebrow: 'CONFIRM TAILNET CHANGE', confirmNote: 'This changes local Tailscale preferences and may affect connectivity. Nothing is submitted until you confirm.',
+    cancel: 'Cancel', apply: 'Apply', submitting: 'Submitting, please wait…',
+    prefsUpdated: 'Preferences updated; verifying service state.', opFailed: 'Operation failed',
+    enableWantRunning: 'Enable Tailscale on this node and try to rejoin the tailnet.', disableWantRunning: 'Disable Tailscale on this node. This may immediately drop your management session.',
+    enableShields: 'Enable ShieldsUp so other tailnet devices cannot initiate connections to this node.', disableShields: 'Disable ShieldsUp and allow inbound connections permitted by tailnet ACLs.',
+    enableRoutes: 'Replace all advertised routes with [{cidr}]; an admin must still approve them and forwarding must be configured.', disableRoutes: 'Replace all advertised routes with [] and remove any other advertised routes.',
+    footer: 'Gateway control plane · no external CDN / no telemetry', footerHint: 'Refreshes every 15 s · traffic is cumulative, not a rate',
+    loginSubtitle: 'Proxy, DNS, and tailnet — sign in once, see everything.',
+    loginPoints: 'Services available after sign-in', pointMihomo: 'Rules, nodes, traffic', pointOxidns: 'Resolver and routing state', pointTailscale: 'Tailnet and nodes',
+    signIn: 'SIGN IN', loginHeading: 'Sign in to the control panel',
+    loginHint: 'Continue with the administrator account. The session is shared across this domain’s services.',
+    username: 'Username', password: 'Password', badCredentials: 'Incorrect username or password.',
+    loginSubmit: 'Sign in', loginNote: 'Credentials are used only with the session cookie and never appear in the URL.',
+    sessionLife: 'Session lasts 8 hours', language: 'Language',
+  },
+};
+export const LANGS = ['zh', 'en'];
+export function detectLang() {
+  try { const saved = localStorage.getItem('gateway-lang'); if (LANGS.includes(saved)) return saved; } catch {}
+  return navigator.language?.toLowerCase().startsWith('zh') ? 'zh' : 'en';
+}
+export function setLang(lang) {
+  const next = LANGS.includes(lang) ? lang : 'zh';
+  try { localStorage.setItem('gateway-lang', next); } catch {}
+  document.documentElement.lang = next === 'zh' ? 'zh-CN' : 'en';
+  return next;
+}
+export function translate(lang) {
+  const dict = messages[lang] || messages.zh;
+  const t = (key, values = {}) => (dict[key] ?? messages.zh[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => values[k] ?? '');
+  for (const node of document.querySelectorAll('[data-i18n]')) node.textContent = t(node.dataset.i18n);
+  for (const node of document.querySelectorAll('[data-i18n-aria]')) node.setAttribute('aria-label', t(node.dataset.i18nAria));
+  document.title = t(document.body.dataset.page === 'login' ? 'loginTitle' : 'title');
+  document.documentElement.lang = lang === 'zh' ? 'zh-CN' : 'en';
+  return t;
+}

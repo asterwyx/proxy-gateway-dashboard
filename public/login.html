@@ -1,0 +1,53 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="light dark"><meta name="robots" content="noindex">
+  <title>登录 · 网关控制面板</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <link rel="stylesheet" href="/style.css"><script type="module" src="/login.js"></script>
+</head>
+<body class="login-page" data-page="login">
+  <div class="login-shell">
+    <header class="login-top">
+      <a class="brand" href="/login" aria-label="网关控制面板"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 20.5a7 7 0 0 1 14 0"/><circle cx="16" cy="21" r="1.9"/><path d="M16 9.5v3.2"/></svg></span><span data-i18n="brand">网关</span><span class="brand-sub" data-i18n="brandSub"> / 控制面板</span></a>
+      <button id="lang" class="icon-button" aria-label="Language">EN</button><button id="theme" class="icon-button" data-i18n="theme">主题</button>
+    </header>
+    <main class="login-main">
+      <section class="login-intro">
+        <p class="eyebrow">PROXY GATEWAY</p>
+        <h1>安静地，<br>守住每个入口。</h1>
+        <p class="subtitle" data-i18n="loginSubtitle"></p>
+        <ul class="login-points" data-i18n-aria="loginPoints">
+          <li><span class="service-icon" aria-hidden="true">M</span><span><strong>mihomo</strong><small data-i18n="pointMihomo"></small></span></li>
+          <li><span class="service-icon" aria-hidden="true">O</span><span><strong>OxiDNS</strong><small data-i18n="pointOxidns"></small></span></li>
+          <li><span class="service-icon" aria-hidden="true">T</span><span><strong>Tailscale</strong><small data-i18n="pointTailscale"></small></span></li>
+        </ul>
+      </section>
+      <section class="login-card" aria-labelledby="login-title">
+        <p class="eyebrow" data-i18n="signIn">SIGN IN</p>
+        <h2 id="login-title" data-i18n="loginHeading"></h2>
+        <p class="muted login-hint" data-i18n="loginHint"></p>
+        <form method="post" action="/login" autocomplete="on" class="login-form">
+          <input type="hidden" name="next" id="next" value="/">
+          <div class="field">
+            <label for="username" data-i18n="username"></label>
+            <input id="username" name="username" type="text" autocomplete="username" autocapitalize="none" spellcheck="false" required autofocus>
+          </div>
+          <div class="field">
+            <label for="password" data-i18n="password"></label>
+            <div class="password-wrap">
+              <input id="password" name="password" type="password" autocomplete="current-password" required>
+              <button type="button" id="toggle-password" class="reveal-button" data-i18n="show" aria-pressed="false">显示</button>
+            </div>
+          </div>
+          <p id="login-error" class="login-error" role="alert" data-i18n="badCredentials" hidden></p>
+          <button type="submit" class="button login-submit"><span data-i18n="loginSubmit"></span> <span aria-hidden="true">→</span></button>
+        </form>
+        <p class="login-note muted" data-i18n="loginNote"></p>
+      </section>
+    </main>
+    <footer class="login-footer"><span data-i18n="footer"></span><span data-i18n="sessionLife"></span></footer>
+  </div>
+</body>
+</html>
