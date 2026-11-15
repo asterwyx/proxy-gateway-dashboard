@@ -1,7 +1,6 @@
 .git
 .test-*
 node_modules
-vendor
 .env*
 secrets
 coverage

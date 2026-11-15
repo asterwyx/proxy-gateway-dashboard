@@ -8,17 +8,15 @@ Node.js 24 原生 HTTP 控制面板，无运行时 npm 依赖。提供 mihomo、
 | `mihomo.proxy.asterwyx.top` | Yacd-meta，使用同源 `/mihomo-api` |
 | `oxidns.proxy.asterwyx.top` | OxiDNS 原生 WebUI |
 
-Yacd 的官方静态构建直接包含在 Dashboard 镜像中，不再依赖独立的 MetaCubeXD 服务。版本和存档 SHA-256 固定在 `frontend/yacd.json`；业务 JavaScript/CSS 保持上游内容。OxiDNS 仍使用原版镜像。网关只在前端 HTML 的最前面加入同源偏好脚本，不包装 fetch/WebSocket，不修改上游 API。
+Yacd 作为独立的 `mihomo-ui` sidecar 运行，从 MetaCubeX 官方 `gh-pages` 获取静态构建；Dashboard 镜像不包含 Yacd。网关代理 sidecar，并只在前端 HTML 的最前面加入同源偏好脚本，不包装 fetch/WebSocket，不修改上游 API。
 
 固定上游为 mihomo `127.0.0.1:9090`、OxiDNS `127.0.0.1:9199` 和 Tailscale Unix socket。Ingress 必须保留原始 Host。客户端无法指定任意反代目标；后端凭据仅在服务器注入。
 
 ## 本地运行与镜像
 
-需要 Node.js 24+ 和 Git。第一次运行先下载已构建的 Yacd 文件，无需编译前端：
+需要 Node.js 24+。Dashboard 自身无前端编译步骤；本地运行 Yacd 时需另起静态文件服务，默认地址为 `127.0.0.1:9091`。
 
 ```bash
-npm run setup:yacd
-
 DASHBOARD_USER=admin \
 DASHBOARD_PASSWORD_FILE=/path/to/dashboard-password \
 MIHOMO_SECRET_FILE=/path/to/mihomo-secret \
@@ -30,9 +28,9 @@ npm test
 docker build -t proxy-gateway-dashboard .
 ```
 
-密码文件默认位于 `/run/secrets/`，监听 `0.0.0.0:8080`。凭据在启动时读取，轮换后需重启。`FAKEIP_CIDR` 固定为 `198.20.0.0/16`。下载的 `vendor/yacd/` 是生成目录，不纳入 Git。
+密码文件默认位于 `/run/secrets/`，监听 `0.0.0.0:8080`。凭据在启动时读取，轮换后需重启。`FAKEIP_CIDR` 固定为 `198.20.0.0/16`。
 
-Docker 构建阶段取得并校验固定版本的 Yacd；最终镜像仅包含 Node 和应用文件。CI 先运行测试，再构建 `linux/amd64` 镜像；PR 不发布镜像。更新线上版本需发布镜像，并在 Kubernetes 部署仓库固定新的 digest。旧的 `mihomo-ui` 容器可从部署中移除。
+Docker 镜像仅包含 Node 和 Dashboard 应用文件。CI 先运行测试，再构建 `linux/amd64` 镜像；PR 不发布镜像。更新线上版本需发布镜像，并在 Kubernetes 部署仓库固定新的 digest。Yacd 版本在独立 sidecar 的部署清单中管理。
 
 ## 主题和语言
 
@@ -61,7 +59,7 @@ Dashboard 使用非敏感的 `gateway_preferences` Cookie 共享设置，范围�
 
 `npm test` 使用 `node:test`，覆盖认证、CSRF、策略组切换、偏好校验、部分降级、静态前端、压缩 JSON、WebSocket，以及浏览器默认设置与跨域偏好共享。
 
-浏览器验证使用官方 Yacd 构建和本地模拟后端，不修改线上策略：
+浏览器验证使用工作区中检出的官方 Yacd 构建和本地模拟后端，不修改线上策略：
 
 ```bash
 npm install --no-save --package-lock=false playwright

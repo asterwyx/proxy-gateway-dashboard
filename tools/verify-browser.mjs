@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import { createHash } from 'node:crypto';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -57,6 +57,16 @@ export async function verifyBrowser(options = {}) {
       socket.write(Buffer.concat([Buffer.from([0x81, message.length]), message]));
     });
     const m = await listen(mihomo); services.push(m);
+    const yacdIndex = await readFile(new URL('../vendor/yacd/index.html', import.meta.url));
+    const yacdAssets = new Map();
+    const yacdService = await listen(http.createServer(async (req, res) => {
+      const path = new URL(req.url, 'http://yacd.invalid').pathname;
+      if (path === '/' || path === '/index.html') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(yacdIndex); return; }
+      if (!yacdAssets.has(path)) {
+        try { yacdAssets.set(path, { content: await readFile(new URL('../vendor/yacd' + path, import.meta.url)), type: path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : 'application/octet-stream' }); } catch { res.writeHead(404); res.end(); return; }
+      }
+      const asset = yacdAssets.get(path); res.writeHead(200, { 'content-type': asset.type, 'access-control-allow-origin': '*' }); res.end(asset.content);
+    })); services.push(yacdService);
     const oxi = await listen(http.createServer((req, res) => {
       if (req.url === '/native-oxidns.js') { res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' }); res.end(nativeOxiScript); }
       else if (req.url === '/api/health') json(res, { version: 'browser-fixture' });
@@ -65,7 +75,7 @@ export async function verifyBrowser(options = {}) {
       else { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(nativeOxiHTML); }
     })); services.push(oxi);
     const ts = await listen(http.createServer((req, res) => json(res, req.url.endsWith('/status') ? { BackendState: 'Running', Self: { HostName: 'browser-test', Online: true }, Peer: {} } : { WantRunning: true, ShieldsUp: false, AdvertiseRoutes: [] })), join(temporary, 'ts.sock')); services.push(ts);
-    const board = await listen(createDashboard({ user: 'test', password: 'test-password', secret: 'test-secret', mihomo: m.target,
+    const board = await listen(createDashboard({ user: 'test', password: 'test-password', secret: 'test-secret', mihomo: m.target, mihomoUI: yacdService.target,
       oxidns: options.oxidnsTarget || oxi.target, oxidnsPassword: options.oxidnsPassword || 'test-dns-password', tsSocket: ts.target.socketPath })); services.push(board);
     browser = await chromium.launch({ headless: true, args: ['--host-resolver-rules=MAP *.proxy.asterwyx.top 127.0.0.1'] });
     const context = await browser.newContext({ locale: 'en-US', colorScheme: 'dark', viewport: { width: 1440, height: 1000 } });
