@@ -56,23 +56,3 @@ jobs:
           platforms: linux/amd64
           provenance: mode=max
           sbom: true
-
-      - id: yacd-meta
-        uses: docker/metadata-action@v5
-        with:
-          images: ghcr.io/${{ github.repository_owner }}/proxy-gateway-dashboard-yacd
-          tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=sha,format=long
-            type=raw,value=latest,enable={{is_default_branch}}
-      - uses: docker/build-push-action@v6
-        with:
-          context: yacd
-          push: ${{ github.event_name != 'pull_request' }}
-          tags: ${{ steps.yacd-meta.outputs.tags }}
-          labels: ${{ steps.yacd-meta.outputs.labels }}
-          platforms: linux/amd64
-          provenance: mode=max
-          sbom: true

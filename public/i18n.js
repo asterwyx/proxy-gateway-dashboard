@@ -1,4 +1,4 @@
-// Product names (Tailscale, mihomo, OxiDNS, Yacd-meta) are intentionally not translated.
+// Product names (Tailscale, mihomo, OxiDNS, Zashboard) are intentionally not translated.
 export const messages = {
   zh: {
     title: '网关 · 控制面板',
@@ -16,7 +16,7 @@ export const messages = {
     kpiConnectionsHint: 'mihomo · 等待响应', kpiTrafficHint: 'mihomo 本次运行累计',
     tailnetHint: '含本机 · 等待响应', tailnetUnavailable: 'tailnet 名称不可用 · 含本机',
     services: '服务入口', servicesHint: 'HTTPS 子域名 · 凭据留在服务端',
-    mihomoDesc: '规则与代理节点，交给专业的面板。', openMihomo: '打开 Yacd-meta',
+    mihomoDesc: '规则与代理节点，交给专业的面板。', openMihomo: '打开 Zashboard',
     oxidnsDesc: '查看解析配置与 DNS 服务状态。', openOxidns: '打开 DNS 管理',
     tailscaleDesc: '读取本地 tailscaled 的真实状态。', viewTailscale: '查看 tailnet 控制',
     mgmtEyebrow: 'TAILSCALE / LOCAL API', mgmtTitle: '有限控制，更清晰的边界。', mgmtPill: '只开放 3 项偏好设置',
@@ -71,7 +71,7 @@ export const messages = {
     kpiConnectionsHint: 'mihomo · waiting', kpiTrafficHint: 'mihomo since start',
     tailnetHint: 'including this node · waiting', tailnetUnavailable: 'Tailnet name unavailable · including this node',
     services: 'Services', servicesHint: 'HTTPS subdomains · credentials stay server-side',
-    mihomoDesc: 'Rules and proxy nodes, in the dedicated panel.', openMihomo: 'Open Yacd-meta',
+    mihomoDesc: 'Rules and proxy nodes, in the dedicated panel.', openMihomo: 'Open Zashboard',
     oxidnsDesc: 'View resolver configuration and DNS status.', openOxidns: 'Open DNS management',
     tailscaleDesc: 'Live state of the local daemon.', viewTailscale: 'View tailnet controls',
     mgmtEyebrow: 'TAILSCALE / LOCAL API', mgmtTitle: 'Narrow controls, clear boundaries.', mgmtPill: 'Only 3 preferences exposed',

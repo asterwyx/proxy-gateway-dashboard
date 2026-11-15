@@ -57,16 +57,17 @@ export async function verifyBrowser(options = {}) {
       socket.write(Buffer.concat([Buffer.from([0x81, message.length]), message]));
     });
     const m = await listen(mihomo); services.push(m);
-    const yacdIndex = await readFile(new URL('../vendor/yacd/index.html', import.meta.url));
-    const yacdAssets = new Map();
-    const yacdService = await listen(http.createServer(async (req, res) => {
-      const path = new URL(req.url, 'http://yacd.invalid').pathname;
-      if (path === '/' || path === '/index.html') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(yacdIndex); return; }
-      if (!yacdAssets.has(path)) {
-        try { yacdAssets.set(path, { content: await readFile(new URL('../vendor/yacd' + path, import.meta.url)), type: path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : 'application/octet-stream' }); } catch { res.writeHead(404); res.end(); return; }
+    const zashboardRoot = options.zashboardRoot || process.env.ZASHBOARD_ROOT || '/tmp/zashboard-assets/dist';
+    const zashboardIndex = await readFile(join(zashboardRoot, 'index.html'));
+    const zashboardAssets = new Map();
+    const zashboardService = await listen(http.createServer(async (req, res) => {
+      const path = new URL(req.url, 'http://zashboard.invalid').pathname;
+      if (path === '/' || path === '/index.html') { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(zashboardIndex); return; }
+      if (!zashboardAssets.has(path)) {
+        try { zashboardAssets.set(path, { content: await readFile(join(zashboardRoot, path)), type: path.endsWith('.js') ? 'text/javascript' : path.endsWith('.css') ? 'text/css' : 'application/octet-stream' }); } catch { res.writeHead(404); res.end(); return; }
       }
-      const asset = yacdAssets.get(path); res.writeHead(200, { 'content-type': asset.type, 'access-control-allow-origin': '*' }); res.end(asset.content);
-    })); services.push(yacdService);
+      const asset = zashboardAssets.get(path); res.writeHead(200, { 'content-type': asset.type, 'access-control-allow-origin': '*' }); res.end(asset.content);
+    })); services.push(zashboardService);
     const oxi = await listen(http.createServer((req, res) => {
       if (req.url === '/native-oxidns.js') { res.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' }); res.end(nativeOxiScript); }
       else if (req.url === '/api/health') json(res, { version: 'browser-fixture' });
@@ -75,7 +76,7 @@ export async function verifyBrowser(options = {}) {
       else { res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' }); res.end(nativeOxiHTML); }
     })); services.push(oxi);
     const ts = await listen(http.createServer((req, res) => json(res, req.url.endsWith('/status') ? { BackendState: 'Running', Self: { HostName: 'browser-test', Online: true }, Peer: {} } : { WantRunning: true, ShieldsUp: false, AdvertiseRoutes: [] })), join(temporary, 'ts.sock')); services.push(ts);
-    const board = await listen(createDashboard({ user: 'test', password: 'test-password', secret: 'test-secret', mihomo: m.target, mihomoUI: yacdService.target,
+    const board = await listen(createDashboard({ user: 'test', password: 'test-password', secret: 'test-secret', mihomo: m.target, mihomoUI: zashboardService.target,
       oxidns: options.oxidnsTarget || oxi.target, oxidnsPassword: options.oxidnsPassword || 'test-dns-password', tsSocket: ts.target.socketPath })); services.push(board);
     browser = await chromium.launch({ headless: true, args: ['--host-resolver-rules=MAP *.proxy.asterwyx.top 127.0.0.1'] });
     const context = await browser.newContext({ locale: 'en-US', colorScheme: 'dark', viewport: { width: 1440, height: 1000 } });
@@ -88,8 +89,8 @@ export async function verifyBrowser(options = {}) {
     await context.addCookies([{ name: 'gateway_session', value: cookie, domain: '.proxy.asterwyx.top', path: '/', httpOnly: true, secure: false, sameSite: 'Strict' }]);
     await dashboard.goto(address(HOSTS.dashboard) + '/');
     await dashboard.waitForFunction(() => document.querySelector('#mihomo-status')?.textContent.includes('Available'));
-    const yacd = await context.newPage(); await yacd.goto(address(HOSTS.mihomo) + '/');
-    await yacd.waitForFunction(() => [...document.querySelectorAll('a')].some(link => link.getAttribute('href')?.endsWith('/proxies')));
+    const zashboard = await context.newPage(); await zashboard.goto(address(HOSTS.mihomo) + '/');
+    await zashboard.waitForFunction(() => document.body.textContent.includes('Proxies'));
     const oxidns = await context.newPage(); await oxidns.goto(address(HOSTS.oxidns) + '/');
     await oxidns.locator('button[aria-label="Switch to Simplified Chinese"]').waitFor();
     await oxidns.waitForFunction(() => document.documentElement.classList.contains('dark'));
@@ -99,29 +100,28 @@ export async function verifyBrowser(options = {}) {
     await oxidns.bringToFront(); await oxidns.locator('button[aria-label="切换到英文"]').waitFor();
     await oxidns.waitForFunction(() => !document.documentElement.classList.contains('dark'));
     assert.equal(oxidns.url(), oxiURL);
-    await yacd.bringToFront();
-    await yacd.waitForFunction(() => document.documentElement.dataset.theme === 'light' && [...document.querySelectorAll('a')].some(link => link.getAttribute('href')?.endsWith('/proxies') && link.textContent.includes('代理')));
-    await yacd.locator('a[href$="/proxies"]').click();
-    const switchResponse = yacd.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname === '/mihomo-api/proxies/' + encodeURIComponent(group));
-    await yacd.getByRole('menuitem', { name: candidate }).first().click();
+    await zashboard.bringToFront();
+    await zashboard.waitForFunction(() => document.documentElement.lang.startsWith('zh') && document.body.textContent.includes('代理'));
+    const switchResponse = zashboard.waitForResponse(response => response.request().method() === 'PUT' && new URL(response.url()).pathname === '/mihomo-api/proxies/' + encodeURIComponent(group));
+    await zashboard.getByText(candidate, { exact: false }).first().click();
     assert.equal((await switchResponse).status(), 204);
     assert.equal(selected, candidate); assert.equal(switched, 1);
-    await yacd.reload();
-    await yacd.waitForFunction(name => document.body.textContent.includes(name), candidate);
+    await zashboard.reload();
+    await zashboard.waitForFunction(name => document.body.textContent.includes(name), candidate);
     assert.equal(selected, candidate);
     const artifacts = join(root, 'artifacts'); await mkdir(artifacts, { recursive: true });
     await dashboard.screenshot({ path: join(artifacts, 'dashboard-zh-light.png'), fullPage: true });
-    await yacd.screenshot({ path: join(artifacts, 'yacd-zh-light.png'), fullPage: true });
+    await zashboard.screenshot({ path: join(artifacts, 'zashboard-zh-light.png'), fullPage: true });
     if (options.oxidnsTarget) await oxidns.screenshot({ path: join(artifacts, 'oxidns-zh-light.png'), fullPage: true });
     await dashboard.selectOption('#lang', 'en'); await dashboard.selectOption('#theme', 'dark');
-    await yacd.bringToFront(); await yacd.waitForFunction(() => document.documentElement.dataset.theme === 'dark' && [...document.querySelectorAll('a')].some(link => link.getAttribute('href')?.endsWith('/proxies') && link.textContent.includes('Proxies')));
+    await zashboard.bringToFront(); await zashboard.waitForFunction(() => document.documentElement.lang.startsWith('en') && document.body.textContent.includes('Proxies'));
     await oxidns.bringToFront(); await oxidns.locator('button[aria-label="Switch to Simplified Chinese"]').waitFor(); await oxidns.waitForFunction(() => document.documentElement.classList.contains('dark'));
     await dashboard.selectOption('#theme', 'system'); await dashboard.emulateMedia({ colorScheme: 'light' });
     await dashboard.waitForFunction(() => document.documentElement.dataset.theme === 'light');
     await dashboard.setViewportSize({ width: 390, height: 844 });
     assert(await dashboard.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     assert.deepEqual(errors, []);
-    console.log('Browser checks passed: automatic defaults, shared appearance, native locale updates, Yacd node-group selection and mobile layout.');
+    console.log('Browser checks passed: automatic defaults, shared appearance, native locale updates, Zashboard node-group selection and mobile layout.');
   } finally {
     if (browser) await browser.close();
     for (const service of services.reverse()) await service.close();

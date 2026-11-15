@@ -7,3 +7,4 @@ secrets/
 coverage/
 .test-*/
 artifacts/
+vendor/zashboard/

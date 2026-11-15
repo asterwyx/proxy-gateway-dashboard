@@ -7,3 +7,4 @@ coverage
 *.log
 test
 README.md
+vendor/zashboard

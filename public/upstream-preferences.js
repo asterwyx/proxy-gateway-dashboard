@@ -32,8 +32,8 @@
     else if (opposite.some(label => document.querySelector(`button[aria-label="${label}"]`))) pendingLocale = null;
   }
   function reloadForLanguage(state) {
-    // Language has no public runtime hook outside Yacd's settings page.
-    // Preserve navigation, and let users finish an open editor/dialog first.
+    // Zashboard reads these keys while starting; preserve navigation and let
+    // users finish an open editor/dialog before applying a live change.
     if (!document.querySelector('[role="dialog"], dialog[open], input:focus, textarea:focus, [contenteditable="true"]:focus')) {
       location.reload(); return;
     }
@@ -46,27 +46,31 @@
     document.body.appendChild(button);
   }
   function apply(state) {
-    const language = state.language === 'zh' ? 'zh-CN' : 'en';
-    if (ui === 'yacd') {
+    const language = state.language === 'zh' ? 'zh-CN' : 'en-US';
+    if (ui === 'zashboard') {
       const url = new URL(location.href);
-      url.searchParams.set('lng', language);
-      url.searchParams.set('theme', state.theme);
+      url.searchParams.set('hostname', location.hostname);
+      url.searchParams.set('port', location.port || (location.protocol === 'https:' ? '443' : '80'));
+      url.searchParams.set('protocol', location.protocol.slice(0, -1));
+      url.searchParams.set('secondaryPath', '/mihomo-api');
+      url.searchParams.delete('secret');
       if (!previous) {
-        // Yacd's official hostname query supports a full URL with an API path.
-        url.searchParams.set('hostname', location.origin + '/mihomo-api');
-        url.searchParams.delete('port'); url.searchParams.delete('secret');
-        try {
-          const saved = JSON.parse(localStorage.getItem('yacd.metacubex.one') || '{}');
-          const settings = saved && typeof saved === 'object' && !Array.isArray(saved) ? saved : {};
-          store('yacd.metacubex.one', JSON.stringify({ ...settings, theme: state.theme, selectedClashAPIConfigIndex: 0,
-            clashAPIConfigs: [{ baseURL: location.origin + '/mihomo-api', secret: '', addedAt: 0 }] }));
-        } catch {}
+        store('config/auto-theme', 'false');
+        store('config/default-theme', state.theme);
+        store('config/dark-theme', 'dark');
+        store('config/language', language);
+        const backend = { type: 'clash', protocol: location.protocol.slice(0, -1), host: location.hostname,
+          port: location.port || '443', secondaryPath: '/mihomo-api', password: '',
+          uuid: 'gateway', label: 'Gateway' };
+        store('setup/api-list', JSON.stringify([backend]));
+        store('setup/active-uuid', backend.uuid);
       }
       history.replaceState(history.state, '', url.href);
-      store('i18nextLng', language);
       if (previous) {
-        if (previous.theme !== state.theme) changeSelect(['auto', 'light', 'dark'], state.theme);
-        if (previous.language !== state.language && !changeSelect(['zh-CN', 'en'], language)) reloadForLanguage(state);
+        store('config/auto-theme', 'false');
+        store('config/default-theme', state.theme);
+        store('config/language', language);
+        if (previous.theme !== state.theme || previous.language !== state.language) reloadForLanguage(state);
       }
     } else if (ui === 'oxidns') {
       store('theme', state.theme, Boolean(previous));

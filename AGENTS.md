@@ -5,7 +5,7 @@
 - `server.js` implements the native HTTP server, authentication, proxy routing, overview API, and Tailscale controls.
 - `public/` contains dashboard/login HTML, JavaScript modules, shared CSS, the favicon, and Chinese/English translations in `i18n.js`.
 - `test/dashboard.test.js` contains unit and integration tests with mock upstream services.
-- `Dockerfile` packages the application; `.github/workflows/build.yml` runs tests and builds container images.
+- `Dockerfile` packages the application; `.github/workflows/build.yml` runs tests and builds the Dashboard image. Zashboard is pulled from its official container registry as a separate sidecar.
 
 ## Build, Test, and Development Commands
 

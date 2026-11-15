@@ -68,8 +68,8 @@ async function fixture(t, failed = false) {
     else if (req.url === '/_next/main.js') { res.writeHead(200, { 'content-type': 'text/javascript' }); res.end('fetch("/api/health");const route="/plugins";'); }
     else { res.writeHead(200, { 'content-type': 'text/html' }); res.end(html); }
   });
-  const yacd = http.createServer((req, res) => {
-    seen.push({ app: 'yacd', path: req.url, headers: req.headers });
+  const zashboard = http.createServer((req, res) => {
+    seen.push({ app: 'zashboard', path: req.url, headers: req.headers });
     if (req.url === '/native.js') { res.writeHead(200, { 'content-type': 'text/javascript' }); res.end('const untouched = true;'); }
     else { res.writeHead(200, { 'content-type': 'text/html' }); res.end(html); }
   });
@@ -83,12 +83,12 @@ async function fixture(t, failed = false) {
       prefs = { ...prefs, ...Object.fromEntries(Object.entries(patch).filter(([k]) => !k.endsWith('Set'))) }; reply(res, prefs);
     } else reply(res, prefs);
   });
-  const closeM = track(mihomo), closeUI = track(ui), closeYacd = track(yacd), closeTS = track(ts);
-  const mTarget = await listen(mihomo), uiTarget = await listen(ui), yacdTarget = await listen(yacd), tsSocket = join(dir, 'ts.sock');
+  const closeM = track(mihomo), closeUI = track(ui), closeZashboard = track(zashboard), closeTS = track(ts);
+  const mTarget = await listen(mihomo), uiTarget = await listen(ui), zashboardTarget = await listen(zashboard), tsSocket = join(dir, 'ts.sock');
   await new Promise(resolve => ts.listen(tsSocket, resolve));
-  const board = createDashboard({ user: 'admin', password: 'p:a:ss', secret, oxidnsPassword: dnsPassword, tsSocket, mihomo: mTarget, mihomoUI: yacdTarget, oxidns: uiTarget });
+  const board = createDashboard({ user: 'admin', password: 'p:a:ss', secret, oxidnsPassword: dnsPassword, tsSocket, mihomo: mTarget, mihomoUI: zashboardTarget, oxidns: uiTarget });
   const closeB = track(board), address = await listen(board), origin = `http://${address.hostname}:${address.port}`;
-  t.after(async () => { await closeB(); await Promise.all([closeM(), closeUI(), closeYacd(), closeTS()]); await rm(dir, { recursive: true, force: true }); });
+  t.after(async () => { await closeB(); await Promise.all([closeM(), closeUI(), closeZashboard(), closeTS()]); await rm(dir, { recursive: true, force: true }); });
   const cookie = await sessionFor(origin);
   const get = (path, options = {}, host) => fetch(origin + path, { redirect: 'manual', ...options, headers: { Cookie: cookie, ...(host ? { Host: host } : {}), ...options.headers } });
   const native = (app, path, options = {}) => new Promise((resolve, reject) => {
@@ -186,12 +186,12 @@ test('OxiDNS receives an early preferences bootstrap while native scripts, navig
   assert(seen.some(x => x.app === 'ui' && x.headers.authorization === `Basic ${Buffer.from(`admin:${dnsPassword}`).toString('base64')}`));
   assert(!seen.some(x => x.app === 'ui' && x.headers.cookie?.includes(dnsPassword)));
 });
-test('mihomo proxies Yacd sidecar with preferences, server-side Bearer, fixed upstream and redaction', async t => {
+test('mihomo proxies Zashboard sidecar with preferences, server-side Bearer, fixed upstream and redaction', async t => {
   const { native, get, seen } = await fixture(t);
-  assert.equal(await (await native('mihomo', '/')).text(), injectPreferences(html, 'yacd'));
+  assert.equal(await (await native('mihomo', '/')).text(), injectPreferences(html, 'zashboard'));
   assert.equal(await (await native('mihomo', '/native.js')).text(), 'const untouched = true;');
   const head = await native('mihomo', '/', { method: 'HEAD' }); assert.equal(head.status, 200); assert.equal(await head.text(), '');
-  assert(seen.some(x => x.app === 'yacd' && x.path === '/'));
+  assert(seen.some(x => x.app === 'zashboard' && x.path === '/'));
   const res = await native('mihomo', '/mihomo-api/configs');
   assert(!JSON.stringify(await res.json()).includes(secret)); assert(seen.some(x => x.app === 'mihomo' && x.headers.authorization === `Bearer ${secret}`));
   assert.equal((await native('mihomo', '/mihomo-api/compressed')).status, 200); assert.equal((await native('mihomo', '/mihomo-api/empty')).status, 204);
