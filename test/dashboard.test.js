@@ -201,6 +201,14 @@ test('mihomo proxies Zashboard sidecar with preferences, server-side Bearer, fix
   assert.equal((await native('mihomo', '/mihomo-api/configs', options)).status, 200);
   assert.equal((await native('mihomo', '/mihomo-api/configs', { ...options, headers: { ...options.headers, Origin: 'https://evil.invalid' } })).status, 403);
 });
+test('mihomo clears legacy Yacd PWA navigation before serving Zashboard', async t => {
+  const { native } = await fixture(t);
+  const migration = await native('mihomo', '/', { headers: { Accept: 'text/html' } });
+  assert.equal(migration.status, 200);
+  assert.match(await migration.text(), /getRegistrations\(\).*caches\.delete.*frontend=zashboard/s);
+  const zashboard = await native('mihomo', '/?frontend=zashboard', { headers: { Accept: 'text/html' } });
+  assert.equal(await zashboard.text(), injectPreferences(html, 'zashboard'));
+});
 test('same-origin native clients switch encoded Chinese node groups with JSON or text/plain and receive an empty 204', async t => {
   const { native, seen, group, candidate } = await fixture(t);
   const path = '/mihomo-api/proxies/' + encodeURIComponent(group);

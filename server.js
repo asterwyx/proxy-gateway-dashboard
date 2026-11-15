@@ -216,6 +216,19 @@ export function createDashboard(config) {
     return false;
   };
   const safeNext = value => (typeof value === 'string' && value.startsWith('/') && !value.startsWith('//') && !value.includes('\\')) ? value : '/';
+  // Older Yacd builds register a PWA navigation fallback on this hostname.
+  // Its root-level fetch handler can keep returning the old app before the new
+  // Zashboard HTML or service worker is even fetched. A real top-level request
+  // reaches the server; only that request receives this public migration page.
+  const mihomoNavigation = req => hostname(req) === hosts.mihomo && new URL(req.url, 'http://dashboard.invalid').pathname === '/' &&
+    ['GET', 'HEAD'].includes(req.method) && /\btext\/html\b/i.test(req.headers.accept || '') &&
+    !req.headers['sec-fetch-dest'] && !req.headers['sec-fetch-mode'];
+  const migrationPage = `<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1"><title>正在打开 Zashboard</title>
+<style>html{color-scheme:light dark}body{margin:0;min-height:100vh;display:grid;place-items:center;background:Canvas;color:CanvasText;font:16px system-ui,sans-serif}main{max-width:32rem;padding:2rem;text-align:center}p{opacity:.7}</style></head>
+<body><main><h1>正在打开 Zashboard</h1><p>正在清理旧版 mihomo 前端的离线缓存……</p></main>
+<script>navigator.serviceWorker?.getRegistrations().then(rs=>Promise.all(rs.map(r=>r.unregister()))).then(()=>caches?.keys()).then(keys=>Promise.all((keys||[]).map(key=>caches.delete(key)))).finally(()=>location.replace('/?frontend=zashboard'))</script>
+</body></html>`;
   async function readForm(req, limit = 4096) {
     let text = '';
     for await (const chunk of req) { text += chunk.toString('utf8'); if (Buffer.byteLength(text) > limit) throw new Error('form too large'); }
@@ -329,6 +342,10 @@ export function createDashboard(config) {
     try {
       const path = new URL(req.url, 'http://dashboard.invalid').pathname;
       if (path === '/healthz' && ['GET', 'HEAD'].includes(req.method)) { json(res, 200, { ok: true }); return; }
+      if (mihomoNavigation(req)) {
+        const clean = new URL(req.url, 'http://dashboard.invalid').searchParams.has('frontend');
+        if (!clean) { res.writeHead(200, { ...security, 'content-type': 'text/html; charset=utf-8', 'cache-control': 'no-store' }); res.end(req.method === 'HEAD' ? undefined : migrationPage); return; }
+      }
       if (path === '/login') { await handleLogin(req, res); return; }
       // Public login assets must be reachable before authentication or the form
       // renders unstyled; they contain no credentials or upstream data.
