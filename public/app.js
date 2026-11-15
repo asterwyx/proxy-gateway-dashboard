@@ -1,10 +1,9 @@
-import { detectLang, setLang, translate } from './i18n.js';
+import { translate } from './i18n.js';
 const $ = id => document.getElementById(id);
 const CIDR = '198.20.0.0/16';
-const systemDark = () => matchMedia('(prefers-color-scheme: dark)').matches;
-let lang = setLang(detectLang()), t = translate(lang), lastOverview = null;
+const preferences = window.GatewayPreferences;
+let lang = preferences.get().language, t = translate(lang), lastOverview = null, refreshError = '';
 const locale = () => lang === 'zh' ? 'zh-CN' : 'en-US';
-const languageButton = () => { $('lang').textContent = lang === 'zh' ? 'EN' : '中文'; $('lang').setAttribute('aria-label', t('language')); };
 let currentPrefs = null, busy = false, loading = false, pending = null;
 const text = (id, value) => { $(id).textContent = value; };
 const bytes = value => {
@@ -60,29 +59,35 @@ function nodes(ts) {
     body.append(row);
   }
 }
+function renderOverview(data) {
+  const services = data.services, ts = services.tailscale;
+  text('connections', services.mihomo.connections ?? t('notAvailable'));
+  metric('download', services.mihomo.downloadBytes); metric('upload', services.mihomo.uploadBytes);
+  text('mihomo-version', services.mihomo.version ? `mihomo · ${services.mihomo.version}` : `mihomo · ${t('notAvailable')}`);
+  text('tailnet', ts.tailnet ? `${ts.tailnet} · ${t('self')}` : t('tailnetUnavailable'));
+  for (const key of ['mihomo', 'oxidns', 'tailscale']) {
+    const element = $(`${key}-status`), next = badge(services[key].ok, services[key].ok ? t('available') : t('partial'));
+    element.className = next.className; element.replaceChildren(...next.childNodes);
+  }
+  text('oxidns-probe', services.oxidns.ok ? t('oxidnsDesc') : (services.oxidns.error || t('statusUnknown')));
+  text('tailscale-state', ts.state ? t('localState', { state: ts.state }) : t('daemonUnreachable'));
+  controls(); nodes(ts);
+  text('updated', `${t('updated')} ${new Date(data.updatedAt).toLocaleTimeString(locale())}`);
+  const errors = Object.entries(services).filter(([, service]) => !service.ok).map(([name, service]) => `${name}${lang === 'zh' ? '：' : ': '}${service.error || t('errorStatus')}`);
+  if (ts.health?.length) errors.push(t('tsNotice', { items: ts.health.join(lang === 'zh' ? '；' : '; ') }));
+  notice(refreshError ? `${refreshError} ${t('staleNotice')}` : errors.length ? `${t('partialNotice')} ${errors.join(' · ')}` : '');
+  if (refreshError) text('updated', t('refreshFailed'));
+}
 async function refresh() {
   if (loading || busy || $('confirm').open) return;
   loading = true; $('refresh').disabled = true;
   try {
     const response = await fetch('/api/overview', { cache: 'no-store' });
     if (!response.ok) throw new Error(response.status === 401 ? t('authExpired') : response.status === 429 ? t('tooMany') : t('panelUnavailable'));
-    const data = await response.json(), services = data.services, ts = services.tailscale;
-    text('connections', services.mihomo.connections ?? t('notAvailable'));
-    metric('download', services.mihomo.downloadBytes); metric('upload', services.mihomo.uploadBytes);
-    text('mihomo-version', services.mihomo.version ? `mihomo · ${services.mihomo.version}` : `mihomo · ${t('notAvailable')}`);
-    text('tailnet', ts.tailnet ? `${ts.tailnet} · ${t('self')}` : t('tailnetUnavailable'));
-    for (const key of ['mihomo', 'oxidns', 'tailscale']) {
-      const element = $(`${key}-status`), next = badge(services[key].ok, services[key].ok ? t('available') : t('partial'));
-      element.className = next.className; element.replaceChildren(...next.childNodes);
-    }
-    text('oxidns-probe', services.oxidns.ok ? t('oxidnsDesc') : (services.oxidns.error || t('statusUnknown')));
-    text('tailscale-state', ts.state ? t('localState', { state: ts.state }) : t('daemonUnreachable'));
-    currentPrefs = ts.prefs || null; lastOverview = data; controls(); nodes(ts);
-    text('updated', `${t('updated')} ${new Date(data.updatedAt).toLocaleTimeString(locale())}`);
-    const errors = Object.entries(services).filter(([, service]) => !service.ok).map(([name, service]) => `${name}${lang === 'zh' ? '：' : ': '}${service.error || t('errorStatus')}`);
-    if (ts.health?.length) errors.push(t('tsNotice', { items: ts.health.join(lang === 'zh' ? '；' : '; ') }));
-    notice(errors.length ? `${t('partialNotice')} ${errors.join(' · ')}` : '');
-  } catch (error) { notice(`${error.message} ${t('staleNotice')}`); text('updated', t('refreshFailed')); currentPrefs = null; controls(); }
+    lastOverview = await response.json(); refreshError = '';
+    currentPrefs = lastOverview.services.tailscale.prefs || null;
+    renderOverview(lastOverview);
+  } catch (error) { refreshError = error.message; notice(`${refreshError} ${t('staleNotice')}`); text('updated', t('refreshFailed')); currentPrefs = null; controls(); }
   finally { loading = false; $('refresh').disabled = false; }
 }
 for (const key of ['WantRunning', 'ShieldsUp', 'AdvertiseRoutes']) $(key).addEventListener('click', () => {
@@ -108,12 +113,7 @@ $('confirm').addEventListener('close', async () => {
   } catch (error) { notice(error.message); currentPrefs = null; }
   finally { pending = null; busy = false; controls(); }
 });
-try { const saved = localStorage.getItem('gateway-theme'); if (['light', 'dark'].includes(saved)) document.documentElement.dataset.theme = saved; } catch {}
-$('theme').addEventListener('click', () => {
-  const dark = document.documentElement.dataset.theme ? document.documentElement.dataset.theme === 'dark' : systemDark();
-  const next = dark ? 'light' : 'dark'; document.documentElement.dataset.theme = next;
-  try { localStorage.setItem('gateway-theme', next); } catch {}
-});
+$('theme').addEventListener('change', () => preferences.set({ theme: $('theme').value }));
 // Logout uses the guarded POST route, then clears this page's cached state.
 $('logout').addEventListener('click', async () => {
   $('logout').disabled = true;
@@ -121,15 +121,15 @@ $('logout').addEventListener('click', async () => {
     await fetch('/logout', { method: 'POST', headers: { 'X-Dashboard-Request': '1' } });
   } finally { location.replace('/login'); }
 });
-languageButton();
-$('lang').addEventListener('click', () => {
-  lang = setLang(lang === 'zh' ? 'en' : 'zh');
-  t = translate(lang); languageButton();
+preferences.subscribe(state => {
+  lang = state.language; t = translate(lang);
+  $('lang').value = state.languageMode; $('theme').value = state.themeMode;
   // Re-render data-driven values in the newly selected language.
-  if (lastOverview) { controls(); nodes(lastOverview.services.tailscale); text('updated', `${t('updated')} ${new Date(lastOverview.updatedAt).toLocaleTimeString(locale())}`); }
+  if (lastOverview) renderOverview(lastOverview);
   else controls();
 });
-// Each upstream UI runs unchanged at its own subdomain root.
+$('lang').addEventListener('change', () => preferences.set({ language: $('lang').value }));
+// Each upstream UI runs at its own subdomain root.
 $('mihomo-link').href = 'https://mihomo.proxy.asterwyx.top/';
 $('refresh').addEventListener('click', refresh);
 void refresh(); setInterval(() => { if (!document.hidden) void refresh(); }, 15000);

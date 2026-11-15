@@ -4,11 +4,12 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <meta name="color-scheme" content="light dark"><title>网关 · 控制面板</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <script src="/_gateway/preferences.js"></script>
   <link rel="stylesheet" href="/style.css"><script type="module" src="/app.js"></script>
 </head>
 <body>
   <div class="shell">
-    <header class="topbar"><a class="brand" href="/" aria-label="网关首页"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 20.5a7 7 0 0 1 14 0"/><circle cx="16" cy="21" r="1.9"/><path d="M16 9.5v3.2"/></svg></span><span data-i18n="brand">网关</span><span class="brand-sub" data-i18n="brandSub"> / 控制面板</span></a><div class="top-actions"><span class="pill" data-i18n="topPill">单 Pod · 本地控制面</span><button id="lang" class="icon-button" aria-label="Language">EN</button><button id="theme" class="icon-button" data-i18n="theme">主题</button><button id="logout" class="icon-button" data-i18n="logout">退出</button></div></header>
+    <header class="topbar"><a class="brand" href="/" aria-label="网关首页"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 20.5a7 7 0 0 1 14 0"/><circle cx="16" cy="21" r="1.9"/><path d="M16 9.5v3.2"/></svg></span><span data-i18n="brand">网关</span><span class="brand-sub" data-i18n="brandSub"> / 控制面板</span></a><div class="top-actions"><span class="pill" data-i18n="topPill">单 Pod · 本地控制面</span><select id="lang" class="icon-button preference-select" data-i18n-aria="language"><option value="system" data-i18n="languageSystem">语言：跟随浏览器</option><option value="zh">中文</option><option value="en">English</option></select><select id="theme" class="icon-button preference-select" data-i18n-aria="theme"><option value="system" data-i18n="themeSystem">主题：跟随浏览器</option><option value="light" data-i18n="themeLight">浅色</option><option value="dark" data-i18n="themeDark">深色</option></select><button id="logout" class="icon-button" data-i18n="logout">退出</button></div></header>
     <main>
       <section class="intro"><div><p class="eyebrow">PROXY GATEWAY</p><h1><span data-i18n="h1a"></span><br class="mobile-break"><span data-i18n="h1b"></span></h1><p class="subtitle" data-i18n="subtitle"></p></div><div class="refresh-group"><span id="updated" class="muted" data-i18n="refreshing"></span><button id="refresh" class="button secondary"><span data-i18n="refresh"></span> <span aria-hidden="true">↻</span></button></div></section>
       <div id="notice" class="notice" role="status" aria-live="polite" hidden></div>

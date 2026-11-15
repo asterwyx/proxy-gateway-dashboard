@@ -3,11 +3,12 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import net from 'node:net';
 import { createHash } from 'node:crypto';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { createDashboard, createAuthenticator, createCredentialChecker, sameOrigin, csrfAllowed, upstreamCSRFAllowed, validatePrefs, loadConfig, sessionCookie, FAKEIP_CIDR, HOSTS } from '../server.js';
+import { injectPreferences } from '../frontends.js';
 
 const auth = `Basic ${Buffer.from('admin:p:a:ss').toString('base64')}`;
 // Interactive tests authenticate through the same HTML login form a browser uses.
@@ -27,6 +28,12 @@ function track(s) {
 const reply = (res, data, code = 200) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(data)); };
 async function fixture(t, failed = false) {
   const dir = await mkdtemp(join(tmpdir(), 'gateway-test-')), seen = [], patches = [];
+  const group = '策略组 #1 / 主入口', candidate = '香港 / 自动节点组';
+  let selected = 'DIRECT';
+  const yacdRoot = join(dir, 'yacd');
+  await mkdir(yacdRoot);
+  await writeFile(join(yacdRoot, 'index.html'), html);
+  await writeFile(join(yacdRoot, 'native.js'), 'const untouched = true;');
   const mihomo = http.createServer((req, res) => {
     seen.push({ app: 'mihomo', path: req.url, headers: req.headers, method: req.method });
     if (req.url === '/version') reply(res, { version: 'test-version' }, failed ? 503 : 200);
@@ -34,6 +41,19 @@ async function fixture(t, failed = false) {
     else if (req.url === '/configs') reply(res, { secret, message: `embedded ${secret}` });
     else if (req.url === '/compressed') { res.writeHead(200, { 'content-type': 'application/json', 'content-encoding': 'gzip' }); res.end(gzipSync(JSON.stringify({ secret, ok: true }))); }
     else if (req.url === '/empty') { res.writeHead(204, { 'content-type': 'application/json' }); res.end(); }
+    else if (req.url === '/proxies') reply(res, { proxies: { [group]: { name: group, type: 'Selector', now: selected, all: ['DIRECT', candidate] }, [candidate]: { name: candidate, type: 'Selector', now: 'DIRECT', all: ['DIRECT'] } } });
+    else if (req.url === '/proxies/' + encodeURIComponent(group) && req.method === 'PUT') {
+      let body = ''; req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        try {
+          const value = JSON.parse(body).name;
+          if (!['DIRECT', candidate].includes(value)) { reply(res, { message: 'Proxy does not exist' }, 400); return; }
+          selected = value;
+          seen.at(-1).body = JSON.parse(body);
+          res.writeHead(204, { 'content-type': 'application/json' }); res.end();
+        } catch { reply(res, { message: 'Invalid body' }, 400); }
+      });
+    }
     else reply(res, { path: req.url });
   });
   mihomo.on('upgrade', (req, socket, head) => {
@@ -65,7 +85,7 @@ async function fixture(t, failed = false) {
   const closeM = track(mihomo), closeUI = track(ui), closeTS = track(ts);
   const mTarget = await listen(mihomo), uiTarget = await listen(ui), tsSocket = join(dir, 'ts.sock');
   await new Promise(resolve => ts.listen(tsSocket, resolve));
-  const board = createDashboard({ user: 'admin', password: 'p:a:ss', secret, oxidnsPassword: dnsPassword, tsSocket, mihomo: mTarget, mihomoUI: uiTarget, oxidns: uiTarget });
+  const board = createDashboard({ user: 'admin', password: 'p:a:ss', secret, oxidnsPassword: dnsPassword, tsSocket, mihomo: mTarget, yacdRoot, oxidns: uiTarget });
   const closeB = track(board), address = await listen(board), origin = `http://${address.hostname}:${address.port}`;
   t.after(async () => { await closeB(); await Promise.all([closeM(), closeUI(), closeTS()]); await rm(dir, { recursive: true, force: true }); });
   const cookie = await sessionFor(origin);
@@ -77,7 +97,7 @@ async function fixture(t, failed = false) {
     }); req.on('error', reject); req.end(options.body);
   });
   const post = body => get('/api/tailscale/prefs', { method: 'POST', headers: { Origin: origin, 'X-Dashboard-Request': '1', 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  return { get, native, post, address, origin, seen, patches };
+  return { get, native, post, address, origin, seen, patches, group, candidate };
 }
 test('login form credential check uses constant-time comparison and bounded rate limit', () => {
   let now = 0; const check = createCredentialChecker('admin', 'p:a:ss', { now: () => now, attempts: 2, windowMs: 100 });
@@ -101,6 +121,12 @@ test('own CSRF requires custom header, native UI CSRF uses Origin and non-simple
   assert(!upstreamCSRFAllowed(req('https://board.test', { 'content-type': 'text/plain' })));
   assert(!upstreamCSRFAllowed(req('https://board.test', { 'content-type': 'application/json', 'sec-fetch-site': 'same-site' })));
   assert(upstreamCSRFAllowed(req('https://board.test', {}, 'DELETE')));
+  for (const method of ['PUT', 'PATCH']) {
+    assert(upstreamCSRFAllowed(req('https://board.test', { 'content-type': 'text/plain;charset=UTF-8', 'sec-fetch-site': 'same-origin' }, method)));
+    assert(upstreamCSRFAllowed(req('https://board.test', {}, method)));
+    assert(!upstreamCSRFAllowed(req('https://evil.test', { 'content-type': 'text/plain' }, method)));
+    assert(!upstreamCSRFAllowed(req('https://board.test', { 'content-type': 'text/plain', 'sec-fetch-site': 'same-site' }, method)));
+  }
 });
 test('Tailscale EditedPrefs permits only three fields and the fixed fake-IP subnet', () => {
   assert.deepEqual(validatePrefs({ WantRunning: false, AdvertiseRoutes: [FAKEIP_CIDR] }), { WantRunning: false, WantRunningSet: true, AdvertiseRoutes: [FAKEIP_CIDR], AdvertiseRoutesSet: true });
@@ -116,7 +142,7 @@ test('only health is public; all subdomains and assets need authentication', asy
   const { origin } = await fixture(t); assert.equal((await fetch(origin + '/healthz')).status, 200);
   for (const path of ['/', '/app.js']) assert.equal((await fetch(origin + path, { redirect: 'manual' })).status, 303);
   // The login form needs its stylesheet and script before authentication.
-  for (const path of ['/style.css', '/login.js', '/favicon.svg']) assert.equal((await fetch(origin + path)).status, 200);
+  for (const path of ['/style.css', '/login.js', '/favicon.svg', '/_gateway/preferences.js', '/_gateway/upstream-preferences.js']) assert.equal((await fetch(origin + path)).status, 200);
   assert.equal((await fetch(origin + '/api/overview', { redirect: 'manual' })).status, 401);
   for (const host of [HOSTS.mihomo, HOSTS.oxidns]) assert.equal((await fetch(origin + '/', { headers: { Host: host }, redirect: 'manual' })).status, 303);
 });
@@ -147,9 +173,11 @@ test('dashboard entry redirects use HTTPS subdomains with no extra port', async 
     const res = await get(`/${app}/`); assert.equal(res.status, 302); assert.equal(res.headers.get('location'), `https://${HOSTS[app]}/`);
   }
 });
-test('native OxiDNS HTML/JavaScript/navigation and API remain byte-for-byte unchanged', async t => {
+test('OxiDNS receives an early preferences bootstrap while native scripts, navigation and API remain intact', async t => {
   const { native, seen } = await fixture(t);
-  assert.equal(await (await native('oxidns', '/')).text(), html);
+  const page = await (await native('oxidns', '/')).text();
+  assert.equal(page, injectPreferences(html, 'oxidns'));
+  assert(page.indexOf('/_gateway/preferences.js') < page.indexOf('/_next/main.js'));
   assert.equal(await (await native('oxidns', '/_next/main.js')).text(), 'fetch("/api/health");const route="/plugins";');
   assert.equal((await native('oxidns', '/redirect')).headers.get('location'), '/plugins/');
   assert.equal((await native('oxidns', '/external')).status, 502);
@@ -157,10 +185,14 @@ test('native OxiDNS HTML/JavaScript/navigation and API remain byte-for-byte unch
   assert(seen.some(x => x.app === 'ui' && x.headers.authorization === `Basic ${Buffer.from(`admin:${dnsPassword}`).toString('base64')}`));
   assert(!seen.some(x => x.app === 'ui' && x.headers.cookie?.includes(dnsPassword)));
 });
-test('native mihomo uses only official runtime config, server-side Bearer, fixed upstream and redaction', async t => {
+test('mihomo serves bundled Yacd with preferences, server-side Bearer, fixed upstream and redaction', async t => {
   const { native, get, seen } = await fixture(t);
-  assert.equal(await (await native('mihomo', '/')).text(), html);
-  const config = await (await native('mihomo', '/config.js')).text(); assert(config.includes('window.__METACUBEXD_CONFIG__')); assert(!config.includes(secret)); assert(!config.includes('fetch='));
+  assert.equal(await (await native('mihomo', '/')).text(), injectPreferences(html, 'yacd'));
+  assert.equal(await (await native('mihomo', '/native.js')).text(), 'const untouched = true;');
+  assert.equal((await native('mihomo', '/config.js')).status, 404);
+  assert.equal((await native('mihomo', '/proxies')).headers.get('location'), '/#/proxies');
+  const head = await native('mihomo', '/', { method: 'HEAD' }); assert.equal(head.status, 200); assert.equal(await head.text(), '');
+  assert.equal((await native('mihomo', '/%2f..%2fserver.js')).status, 404);
   const res = await native('mihomo', '/mihomo-api/configs');
   assert(!JSON.stringify(await res.json()).includes(secret)); assert(seen.some(x => x.app === 'mihomo' && x.headers.authorization === `Bearer ${secret}`));
   assert.equal((await native('mihomo', '/mihomo-api/compressed')).status, 200); assert.equal((await native('mihomo', '/mihomo-api/empty')).status, 204);
@@ -169,6 +201,25 @@ test('native mihomo uses only official runtime config, server-side Bearer, fixed
   const options = { method: 'PATCH', body: '{}', headers: { Origin: `https://${HOSTS.mihomo}`, 'Content-Type': 'application/json', 'Sec-Fetch-Site': 'same-origin' } };
   assert.equal((await native('mihomo', '/mihomo-api/configs', options)).status, 200);
   assert.equal((await native('mihomo', '/mihomo-api/configs', { ...options, headers: { ...options.headers, Origin: 'https://evil.invalid' } })).status, 403);
+});
+test('same-origin native clients switch encoded Chinese node groups with JSON or text/plain and receive an empty 204', async t => {
+  const { native, seen, group, candidate } = await fixture(t);
+  const path = '/mihomo-api/proxies/' + encodeURIComponent(group);
+  const headers = { Origin: `https://${HOSTS.mihomo}`, 'Sec-Fetch-Site': 'same-origin' };
+  for (const [type, name] of [['text/plain;charset=UTF-8', candidate], ['application/json', 'DIRECT']]) {
+    const response = await native('mihomo', path, { method: 'PUT', headers: { ...headers, 'Content-Type': type }, body: JSON.stringify({ name }) });
+    assert.equal(response.status, 204); assert.equal(await response.text(), '');
+    assert.equal((await (await native('mihomo', '/mihomo-api/proxies')).json()).proxies[group].now, name);
+    const request = seen.findLast(entry => entry.method === 'PUT');
+    assert.equal(request.path, '/proxies/' + encodeURIComponent(group));
+    assert.equal(request.headers.authorization, `Bearer ${secret}`);
+    assert.deepEqual(request.body, { name });
+  }
+  for (const origin of [undefined, 'https://evil.invalid']) {
+    const response = await native('mihomo', path, { method: 'PUT', headers: { ...headers, Origin: origin || '', 'Content-Type': 'text/plain' }, body: JSON.stringify({ name: candidate }) });
+    assert.equal(response.status, 403);
+  }
+  assert.equal((await (await native('mihomo', '/mihomo-api/proxies')).json()).proxies[group].now, 'DIRECT');
 });
 async function upgrade(address, headers = {}, path = '/mihomo-api/traffic?token=never-forward', host = HOSTS.mihomo) {
   return new Promise((resolve, reject) => {

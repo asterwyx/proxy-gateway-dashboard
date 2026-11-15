@@ -5,5 +5,5 @@
   "type": "module",
   "description": "单 Pod 网关控制面板，Node 24 原生 HTTP，无运行时依赖",
   "engines": { "node": ">=24" },
-  "scripts": { "start": "node server.js", "test": "node --test" }
+  "scripts": { "start": "node server.js", "test": "node --test", "setup:yacd": "node scripts/install-yacd.mjs" }
 }

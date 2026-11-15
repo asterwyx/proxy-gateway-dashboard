@@ -4,6 +4,7 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { Transform } from 'node:stream';
 import { gunzipSync, inflateSync, brotliDecompressSync } from 'node:zlib';
+import { injectPreferences, readYacdAsset } from './frontends.js';
 
 export const FAKEIP_CIDR = '198.20.0.0/16';
 export const HOSTS = { dashboard: 'board.proxy.asterwyx.top', mihomo: 'mihomo.proxy.asterwyx.top', oxidns: 'oxidns.proxy.asterwyx.top' };
@@ -46,12 +47,12 @@ export function sameOrigin(req) {
   } catch { return false; }
 }
 export const csrfAllowed = req => sameOrigin(req) && req.headers['x-dashboard-request'] === '1';
-// Upstream UIs are unmodified: enforce Origin/Fetch Metadata rather than
-// requiring our own custom header. Non-simple methods cannot be sent by a
-// cross-origin HTML form; bodies on POST/PUT/PATCH must be JSON.
+// Native clients may send JSON strings as text/plain (for example ky's body
+// option). PUT/PATCH/DELETE are already non-simple methods: cross-origin forms
+// cannot send them. Only POST needs the extra simple-content-type restriction.
 export const upstreamCSRFAllowed = req => sameOrigin(req) &&
   (!req.headers['sec-fetch-site'] || req.headers['sec-fetch-site'] === 'same-origin') &&
-  (!['POST', 'PUT', 'PATCH'].includes(req.method) ||
+  (req.method !== 'POST' ||
    /^application\/json(?:\s*;|$)/i.test(req.headers['content-type'] || '') ||
    (req.headers['content-length'] === '0' && !req.headers['transfer-encoding']));
 
@@ -188,7 +189,7 @@ export function createDashboard(config) {
   const authenticate = createAuthenticator(user, password, { ...config.authOptions, sessions });
   const hosts = config.hosts || HOSTS;
   const mihomoAPI = { prefix: '/mihomo-api/', target: mihomo, api: true };
-  const mihomoUI = { prefix: '/', target: config.mihomoUI || { hostname: '127.0.0.1', port: 9091 } };
+  const mihomoUI = { yacd: true };
   const oxidnsProxy = { prefix: '/', target: oxidns, oxidns: true };
   const hostname = req => (req.headers.host || '').split(':')[0].toLowerCase();
   const findProxy = (req, path) => {
@@ -294,7 +295,9 @@ export function createDashboard(config) {
           outputHeaders.location = proxy.prefix.slice(0, -1) + location.pathname + location.search + location.hash;
         } catch { remote.resume(); json(res, 502, { error: '上游重定向无效' }); return; }
       }
-      if (proxy.api && /json/.test(type)) {
+      const noBody = req.method === 'HEAD' || [204, 304].includes(remote.statusCode);
+      const html = proxy.oxidns && remote.statusCode === 200 && /text\/html/i.test(type);
+      if (!noBody && ((proxy.api && /json/i.test(type)) || html)) {
         const chunks = []; let size = 0;
         remote.on('data', chunk => { size += chunk.length; if (size > LIMIT) remote.destroy(new Error('Response too large')); else chunks.push(chunk); });
         remote.on('end', () => {
@@ -304,7 +307,8 @@ export function createDashboard(config) {
             if (decode) buffer = decode(buffer, { maxOutputLength: LIMIT });
             else if (remote.headers['content-encoding'] && remote.headers['content-encoding'] !== 'identity') throw new Error('Unsupported encoding');
             let text = buffer.toString('utf8');
-            if (text) text = JSON.stringify(JSON.parse(text), (key, value) =>
+            if (html) text = injectPreferences(text, 'oxidns');
+            else if (text) text = JSON.stringify(JSON.parse(text), (key, value) =>
               key.toLowerCase() === 'secret' ? '[redacted]' : typeof value === 'string' ? value.replaceAll(secret, '[redacted]') : value);
             delete outputHeaders['content-length']; delete outputHeaders['content-encoding']; delete outputHeaders.etag;
             res.writeHead(remote.statusCode, outputHeaders); res.end(text);
@@ -328,9 +332,11 @@ export function createDashboard(config) {
       if (path === '/login') { await handleLogin(req, res); return; }
       // Public login assets must be reachable before authentication or the form
       // renders unstyled; they contain no credentials or upstream data.
-      if (['/style.css', '/login.js', '/i18n.js', '/favicon.svg'].includes(path) && ['GET', 'HEAD'].includes(req.method)) {
-        const [file, type] = { '/style.css': ['style.css', 'text/css'], '/login.js': ['login.js', 'text/javascript'], '/i18n.js': ['i18n.js', 'text/javascript'], '/favicon.svg': ['favicon.svg', 'image/svg+xml'] }[path];
-        res.writeHead(200, { ...security, 'content-type': `${type}; charset=utf-8`, 'cache-control': 'public, max-age=300' });
+      const loginAssets = { '/style.css': ['style.css', 'text/css'], '/login.js': ['login.js', 'text/javascript'], '/i18n.js': ['i18n.js', 'text/javascript'], '/favicon.svg': ['favicon.svg', 'image/svg+xml'],
+        '/_gateway/preferences.js': ['preferences.js', 'text/javascript'], '/_gateway/upstream-preferences.js': ['upstream-preferences.js', 'text/javascript'] };
+      if (loginAssets[path] && ['GET', 'HEAD'].includes(req.method)) {
+        const [file, type] = loginAssets[path];
+        res.writeHead(200, { ...security, 'content-type': `${type}; charset=utf-8` });
         res.end(req.method === 'HEAD' ? undefined : await readFile(new URL(file, PUBLIC))); return;
       }
       if (path === '/logout' && req.method === 'POST') {
@@ -344,9 +350,16 @@ export function createDashboard(config) {
         json(res, 403, { error: 'CSRF 检查失败' }); return;
       }
       if (native) {
-        if (hostname(req) === hosts.mihomo && path === '/config.js' && ['GET', 'HEAD'].includes(req.method)) {
-          res.writeHead(200, { ...security, 'content-type': 'text/javascript; charset=utf-8' });
-          res.end(req.method === 'HEAD' ? undefined : "window.__METACUBEXD_CONFIG__={defaultBackendURL:location.origin+'/mihomo-api'};\n"); return;
+        if (native.yacd) {
+          if (!['GET', 'HEAD'].includes(req.method)) { json(res, 405, { error: '方法不允许' }); return; }
+          // Preserve bookmarks from the previous frontend's pathname router.
+          if (['/proxies', '/rules', '/connections', '/configs', '/logs'].includes(path)) {
+            res.writeHead(302, { ...security, location: '/#' + path }); res.end(); return;
+          }
+          const asset = await readYacdAsset(path, config.yacdRoot);
+          if (asset.status !== 200) { json(res, asset.status, { error: asset.status === 503 ? 'Yacd 面板资源不可用' : '未找到资源' }); return; }
+          res.writeHead(200, { ...security, 'content-type': asset.type });
+          res.end(req.method === 'HEAD' ? undefined : asset.content); return;
         }
         proxyHTTP(req, res, native); return;
       }

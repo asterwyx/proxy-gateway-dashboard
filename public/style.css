@@ -8,6 +8,9 @@
 @media(forced-colors:active){.toggle{border:1px solid ButtonText}.toggle[aria-checked="true"]{outline:2px solid Highlight}.status .dot{border:1px solid CanvasText}button:focus-visible,a:focus-visible{outline-color:Highlight}}
 
 /* Login page shares the dashboard's tokens, type and spacing. */
+.top-actions{flex-wrap:wrap;justify-content:flex-end}
+.preference-select{max-width:165px;cursor:pointer;color:var(--ink);background:var(--surface);font:inherit;font-size:11px}
+@media(max-width:580px){.topbar,.login-top{gap:12px}.preference-select{max-width:140px}.top-actions{gap:6px}}
 .login-page{min-height:100dvh;background:radial-gradient(120% 90% at 15% 0%,color-mix(in srgb,var(--accent) 10%,transparent),transparent 60%),var(--page)}
 .login-shell{max-width:1120px;margin:auto;padding:0 40px;min-height:100dvh;display:flex;flex-direction:column}
 .login-top{display:flex;justify-content:space-between;align-items:center;gap:16px;padding:24px 0;border-bottom:1px solid var(--line)}

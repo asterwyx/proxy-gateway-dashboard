@@ -5,18 +5,19 @@
   <meta name="color-scheme" content="light dark"><meta name="robots" content="noindex">
   <title>登录 · 网关控制面板</title>
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+  <script src="/_gateway/preferences.js"></script>
   <link rel="stylesheet" href="/style.css"><script type="module" src="/login.js"></script>
 </head>
 <body class="login-page" data-page="login">
   <div class="login-shell">
     <header class="login-top">
       <a class="brand" href="/login" aria-label="网关控制面板"><span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 32 32" aria-hidden="true"><path d="M9 20.5a7 7 0 0 1 14 0"/><circle cx="16" cy="21" r="1.9"/><path d="M16 9.5v3.2"/></svg></span><span data-i18n="brand">网关</span><span class="brand-sub" data-i18n="brandSub"> / 控制面板</span></a>
-      <button id="lang" class="icon-button" aria-label="Language">EN</button><button id="theme" class="icon-button" data-i18n="theme">主题</button>
+      <div class="top-actions"><select id="lang" class="icon-button preference-select" data-i18n-aria="language"><option value="system" data-i18n="languageSystem">语言：跟随浏览器</option><option value="zh">中文</option><option value="en">English</option></select><select id="theme" class="icon-button preference-select" data-i18n-aria="theme"><option value="system" data-i18n="themeSystem">主题：跟随浏览器</option><option value="light" data-i18n="themeLight">浅色</option><option value="dark" data-i18n="themeDark">深色</option></select></div>
     </header>
     <main class="login-main">
       <section class="login-intro">
         <p class="eyebrow">PROXY GATEWAY</p>
-        <h1>安静地，<br>守住每个入口。</h1>
+        <h1><span data-i18n="loginH1a"></span><br><span data-i18n="loginH1b"></span></h1>
         <p class="subtitle" data-i18n="loginSubtitle"></p>
         <ul class="login-points" data-i18n-aria="loginPoints">
           <li><span class="service-icon" aria-hidden="true">M</span><span><strong>mihomo</strong><small data-i18n="pointMihomo"></small></span></li>

@@ -1,69 +1,72 @@
 # 网关 Dashboard
 
-Node 24 原生 HTTP 服务，无运行时 npm 依赖。中文响应式面板提供真实流量累计值、服务入口、Tailscale 节点表和有限的本地偏好管理。已初始化为独立 Git 仓库；未 commit/push。
-
-## 域名与原版 UI
+Node.js 24 原生 HTTP 控制面板，无运行时 npm 依赖。提供 mihomo、OxiDNS 和 Tailscale 的状态，并统一三个入口的语言与深浅主题。
 
 | 域名 | 功能 |
 |---|---|
-| `board.proxy.asterwyx.top` | 自建 Dashboard |
-| `mihomo.proxy.asterwyx.top` | 原版 MetaCubeXD，根路径 `/` |
-| `oxidns.proxy.asterwyx.top` | 原版 OxiDNS WebUI，根路径 `/` |
+| `board.proxy.asterwyx.top` | Dashboard |
+| `mihomo.proxy.asterwyx.top` | Yacd-meta，使用同源 `/mihomo-api` |
+| `oxidns.proxy.asterwyx.top` | OxiDNS 原生 WebUI |
 
-同一 Pod 中固定上游：mihomo `127.0.0.1:9090`、MetaCubeXD `127.0.0.1:9091`、OxiDNS `127.0.0.1:9199`、Tailscale Unix socket。Ingress 必须保留原始 Host，三个入口均为 HTTPS/443。Host 只选择预先定义的上游，不能指定任意 URL。
+Yacd 的官方静态构建直接包含在 Dashboard 镜像中，不再依赖独立的 MetaCubeXD 服务。版本和存档 SHA-256 固定在 `frontend/yacd.json`；业务 JavaScript/CSS 保持上游内容。OxiDNS 仍使用原版镜像。网关只在前端 HTML 的最前面加入同源偏好脚本，不包装 fetch/WebSocket，不修改上游 API。
 
-**不重构、不修改上游镜像/源码，不替换上游 HTML/JavaScript，不注入 transport wrapper。** OxiDNS API、静态资源、导航路径均原样反代。MetaCubeXD 只使用其官方支持的运行时 `config.js`，配置同源后端 `/mihomo-api`，不向浏览器暴露 mihomo secret。Dashboard 的 `/mihomo/`、`/oxidns/` 是可选跳转到对应 HTTPS 子域名的入口。
+固定上游为 mihomo `127.0.0.1:9090`、OxiDNS `127.0.0.1:9199` 和 Tailscale Unix socket。Ingress 必须保留原始 Host。客户端无法指定任意反代目标；后端凭据仅在服务器注入。
 
-`proxy.asterwyx.top` 不属于这个 HTTP 应用，它是独立 TLS/TCP 正向代理；部署说明见上一级 README。
+## 本地运行与镜像
 
-## 镜像
-
-CI 在 push 到默认分支或打 `v*` 标签时构建并发布到：
-
-```text
-ghcr.io/asterwyx/proxy-gateway-dashboard:latest
-ghcr.io/asterwyx/proxy-gateway-dashboard:sha-<commit>
-ghcr.io/asterwyx/proxy-gateway-dashboard:<semver>
-```
-
-工作流：`.github/workflows/build.yml`（先 `npm test`，再构建 `linux/amd64` 镜像，含 SBOM 与 provenance）。本仓库不存放凭据；运行时通过 mounted Secret 读取密码文件。
-
-## 运行与测试
+需要 Node.js 24+ 和 Git。第一次运行先下载已构建的 Yacd 文件，无需编译前端：
 
 ```bash
+npm run setup:yacd
+
 DASHBOARD_USER=admin \
 DASHBOARD_PASSWORD_FILE=/path/to/dashboard-password \
 MIHOMO_SECRET_FILE=/path/to/mihomo-secret \
 OXIDNS_PASSWORD_FILE=/path/to/oxidns-password \
 TS_SOCKET=/var/run/tailscale/tailscaled.sock \
-node server.js
+npm start
 
 npm test
+docker build -t proxy-gateway-dashboard .
 ```
 
-默认密码文件位于 `/run/secrets/`。监听 `0.0.0.0:8080`，不直接公开此端口。凭据启动时读取，密码轮换需重启。`FAKEIP_CIDR` 只能是 `198.18.0.0/16`。
+密码文件默认位于 `/run/secrets/`，监听 `0.0.0.0:8080`。凭据在启动时读取，轮换后需重启。`FAKEIP_CIDR` 固定为 `198.20.0.0/16`。下载的 `vendor/yacd/` 是生成目录，不纳入 Git。
 
-当前 Kubernetes 部署直接使用原版 `node:24-alpine` 和带哈希的源码 ConfigMap，无需构建镜像；Dockerfile 仅用于独立打包本项目，不构建任何上游派生镜像。
+Docker 构建阶段取得并校验固定版本的 Yacd；最终镜像仅包含 Node 和应用文件。CI 先运行测试，再构建 `linux/amd64` 镜像；PR 不发布镜像。更新线上版本需发布镜像，并在 Kubernetes 部署仓库固定新的 digest。旧的 `mihomo-ui` 容器可从部署中移除。
+
+## 主题和语言
+
+登录页与 Dashboard 默认选择“跟随浏览器”：语言按浏览器的语言顺序选择中文或英文，主题监听 `prefers-color-scheme`。自动检测不会保存为手动选择；手动设置后可随时重新选择“跟随浏览器”。
+
+Dashboard 使用非敏感的 `gateway_preferences` Cookie 共享设置，范围为 `proxy.asterwyx.top`。子页面加载、恢复可见或 Dashboard 设置改变时应用偏好。可见页面每秒检查一次，后台页面在恢复时更新。认证仍使用单独的 HttpOnly 会话 Cookie。
+
+主题变化直接更新原生主题。OxiDNS 的语言通过其原生语言按钮更新。Yacd 在设置页可直接更新语言；其它页面通过重新加载应用语言，同时保留当前路由。若有打开的对话框或正在编辑的输入框，会显示“应用 Dashboard 的语言设置”按钮，让用户完成编辑后再应用。
 
 ## API 与安全边界
 
-- `GET /healthz`：唯一无需认证的健康检查；不透露上游状态。
-- `GET /api/overview`：真实聚合 mihomo `/version`、`/connections`，OxiDNS `/api/health`、`/api/readyz` 和 Tailscale LocalAPI；单项失败不抹去其它有效数据。Tailscale 未 Running 时明确标为不可用。
-- `GET /login`、`POST /login`：登录页与凭据提交；`next` 只接受站内相对路径，错误时返回登录页。
-- `POST /logout`：清除会话 Cookie。
-- `POST /api/tailscale/prefs`：只允许 `WantRunning`、`ShieldsUp` 布尔值及 `AdvertiseRoutes: [] | ['198.18.0.0/16']`，转换为 EditedPrefs。未知字段、AuthKey、出口节点、DNS 配置及任意网段都拒绝。
-- 自建修改接口要求同 Host 的 Origin 加 `X-Dashboard-Request: 1`；UI 提交前有确认对话框。
-- 上游 UI 修改不需要自定义 JS：网关检查同源 Origin、Fetch Metadata，POST/PUT/PATCH 仅接受 JSON 或显式零长度请求体；不提供跨源 CORS。
-- WebSocket 仅开放 mihomo API，要求同源 Origin，并通过 HttpOnly、host-only、SameSite=Strict 的签名会话 cookie 认证（浏览器 WebSocket 不能附加自定义认证头，因此直接复用同一 Cookie）。HTTPS 入口设置 Secure。
-- 面板使用独立表单登录 `/login`（字段 `username`、`password`，带标准 `autocomplete`，可被密码管理器填充），不触发浏览器 Basic 弹窗。登录成功后签发 `gateway_session`：HMAC 签名、8 小时有效，`HttpOnly; Secure; SameSite=Strict`，`Domain=proxy.asterwyx.top`，因此 `board`、`mihomo`、`oxidns` 三个子域名共享同一会话。`POST /logout` 清除 Cookie。用户名和密码使用固定长度 SHA-256 与 timingSafeEqual 比较；每 TCP 来源 IP 60 秒最多 8 次失败，成功会清除失败计数。代理后来源地址共享，生产大规模部署应在入口另加限速。
-- 客户端认证、cookie、Origin、Forwarded 等不转发；服务端分别注入 mihomo Bearer 与 OxiDNS BasicAuth。mihomo URL token 丢弃，JSON 中的 secret 脱敏。OxiDNS配置使用环境变量密码引用，勿改为明文。
-- 凭据不放 Git、不记录请求头/请求体。原版 UI 自身的更新检查等行为由其上游负责。
-- Dashboard 使用 UID 0 访问 Tailscale LocalAPI，但容器 drop ALL capabilities、只读根文件系统、禁止提权、无 Kubernetes token，不需要 privileged。
+- `GET /healthz`：无需认证的健康检查，不透露上游状态。
+- `GET /api/overview`：聚合 mihomo、OxiDNS 与 Tailscale 的真实数据；单项失败不抹去其它结果。
+- `POST /api/tailscale/prefs`：只允许 `WantRunning`、`ShieldsUp` 和空列表或固定 fake-IP 路由，转换为 EditedPrefs。
+- `GET/POST /login`：标准表单登录；签发 8 小时的 HMAC 签名会话，`HttpOnly; Secure; SameSite=Strict`，三个子域共享。
+- `POST /logout`：撤销当前会话并清除 Cookie。
+- 自建修改接口要求同 Host 的 Origin 和 `X-Dashboard-Request: 1`。
+- 上游修改检查同源 Origin 与 Fetch Metadata。POST 额外限制 JSON 或明确空请求体；PUT/PATCH/DELETE 是非简单方法，可接受原生客户端使用的内容类型。
+- mihomo WebSocket 仅在 API 路径开放，并要求有效会话与同源 Origin。
 
-路由开关会替换完整发布列表；重启时官方 Tailscale containerboot 会恢复部署中的 TS_ROUTES。关闭 Tailscale 或开启 ShieldsUp 会影响 **Pod 的独立节点**，不会改变宿主机 `home-0` 节点。路由批准、尾网 ACL 与客户端 DNS 设置需另行配置。
+原 MetaCubeXD 用 `text/plain` 发送 JSON 字符串的策略切换 PUT，旧网关因此返回 403。现在该请求保留同源校验并正常转发；成功的空 204 响应原样返回。中文策略组名称及包含斜杠的节点组名称有回归覆盖。
+
+不提交或记录凭据。客户端 Cookie、Authorization、Origin 和 Forwarded 不转发；服务器注入 mihomo Bearer 与 OxiDNS BasicAuth，移除 URL token，并脱敏 mihomo JSON 中的 secret。容器访问 Tailscale LocalAPI 时使用 UID 0，部署应保留 drop ALL capabilities、只读根文件系统和禁止提权。
 
 ## 验证
 
-`npm test` 包含 12 项原生 node:test 单元/集成测试，覆盖认证/签名 cookie、CSRF、EditedPrefs、部分降级、原样 UI、固定上游、官方运行时配置、压缩 JSON 和浏览器式 WebSocket 认证。
+`npm test` 使用 `node:test`，覆盖认证、CSRF、策略组切换、偏好校验、部分降级、静态前端、压缩 JSON、WebSocket，以及浏览器默认设置与跨域偏好共享。
 
-浏览器脚本在 `../tools/verify-browser.mjs`；真实数据面脚本在 `../tools/verify-data-plane.js`。截图输出到 `../artifacts/`，不属于本 Git 仓库。验证时若 Cloudflare Token 仍未填写，浏览器只在测试上下文忽略 ingress 临时证书错误，不代表正式证书已签发。
+浏览器验证使用官方 Yacd 构建和本地模拟后端，不修改线上策略：
+
+```bash
+npm install --no-save --package-lock=false playwright
+npx playwright install chromium
+node tools/verify-browser.mjs
+```
+
+截图写入忽略的 `artifacts/`。测试检查界面实际语言与主题、切换后的节点组、刷新后的状态及手机宽度布局。

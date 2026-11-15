@@ -1,10 +1,11 @@
-// Product names (Tailscale, mihomo, OxiDNS, MetaCubeXD) are intentionally not translated.
+// Product names (Tailscale, mihomo, OxiDNS, Yacd-meta) are intentionally not translated.
 export const messages = {
   zh: {
     title: '网关 · 控制面板',
     loginTitle: '登录 · 网关控制面板',
     brand: '网关', brandSub: ' / 控制面板',
     theme: '主题', logout: '退出', login: '登录', show: '显示', hide: '隐藏',
+    themeSystem: '主题：跟随浏览器', themeLight: '浅色', themeDark: '深色', languageSystem: '语言：跟随浏览器',
     topPill: '单 Pod · 本地控制面',
     eyebrow: 'PROXY GATEWAY',
     h1a: '网络的每一处，', h1b: '尽在此处。',
@@ -15,7 +16,7 @@ export const messages = {
     kpiConnectionsHint: 'mihomo · 等待响应', kpiTrafficHint: 'mihomo 本次运行累计',
     tailnetHint: '含本机 · 等待响应', tailnetUnavailable: 'tailnet 名称不可用 · 含本机',
     services: '服务入口', servicesHint: 'HTTPS 子域名 · 凭据留在服务端',
-    mihomoDesc: '规则与代理节点，交给专业的面板。', openMihomo: '打开 MetaCubeXD',
+    mihomoDesc: '规则与代理节点，交给专业的面板。', openMihomo: '打开 Yacd-meta',
     oxidnsDesc: '查看解析配置与 DNS 服务状态。', openOxidns: '打开 DNS 管理',
     tailscaleDesc: '读取本地 tailscaled 的真实状态。', viewTailscale: '查看 tailnet 控制',
     mgmtEyebrow: 'TAILSCALE / LOCAL API', mgmtTitle: '有限控制，更清晰的边界。', mgmtPill: '只开放 3 项偏好设置',
@@ -46,6 +47,7 @@ export const messages = {
     enableRoutes: '将全部发布路由替换为 [{cidr}]；还需管理员批准，并在主机侧正确配置转发。', disableRoutes: '将全部发布路由替换为空列表 []；其它已发布路由也会被移除。',
     footer: '网关控制面 · 无外部 CDN / 无遥测', footerHint: '状态每 15 秒刷新 · 流量为累计值，不是速率',
     loginSubtitle: '代理、域名解析与 tailnet，一处登录，处处可见。',
+    loginH1a: '安静地，', loginH1b: '守住每个入口。',
     loginPoints: '登录后可访问的服务', pointMihomo: '规则、节点与流量', pointOxidns: '解析与分流状态', pointTailscale: 'tailnet 与节点',
     signIn: 'SIGN IN', loginHeading: '登录控制面板',
     loginHint: '使用管理员账号继续。登录后可在本域名的子服务间共享会话。',
@@ -58,6 +60,7 @@ export const messages = {
     loginTitle: 'Sign in · Gateway Control Panel',
     brand: 'Gateway', brandSub: ' / Control Panel',
     theme: 'Theme', logout: 'Sign out', login: 'Sign in', show: 'Show', hide: 'Hide',
+    themeSystem: 'Theme: browser', themeLight: 'Light', themeDark: 'Dark', languageSystem: 'Language: browser',
     topPill: 'Single pod · local control plane',
     eyebrow: 'PROXY GATEWAY',
     h1a: 'Every part of the network, ', h1b: 'in one place.',
@@ -68,7 +71,7 @@ export const messages = {
     kpiConnectionsHint: 'mihomo · waiting', kpiTrafficHint: 'mihomo since start',
     tailnetHint: 'including this node · waiting', tailnetUnavailable: 'Tailnet name unavailable · including this node',
     services: 'Services', servicesHint: 'HTTPS subdomains · credentials stay server-side',
-    mihomoDesc: 'Rules and proxy nodes, in the dedicated panel.', openMihomo: 'Open MetaCubeXD',
+    mihomoDesc: 'Rules and proxy nodes, in the dedicated panel.', openMihomo: 'Open Yacd-meta',
     oxidnsDesc: 'View resolver configuration and DNS status.', openOxidns: 'Open DNS management',
     tailscaleDesc: 'Live state of the local daemon.', viewTailscale: 'View tailnet controls',
     mgmtEyebrow: 'TAILSCALE / LOCAL API', mgmtTitle: 'Narrow controls, clear boundaries.', mgmtPill: 'Only 3 preferences exposed',
@@ -99,6 +102,7 @@ export const messages = {
     enableRoutes: 'Replace all advertised routes with [{cidr}]; an admin must still approve them and forwarding must be configured.', disableRoutes: 'Replace all advertised routes with [] and remove any other advertised routes.',
     footer: 'Gateway control plane · no external CDN / no telemetry', footerHint: 'Refreshes every 15 s · traffic is cumulative, not a rate',
     loginSubtitle: 'Proxy, DNS, and tailnet — sign in once, see everything.',
+    loginH1a: 'A simple way', loginH1b: 'to manage your gateway.',
     loginPoints: 'Services available after sign-in', pointMihomo: 'Rules, nodes, traffic', pointOxidns: 'Resolver and routing state', pointTailscale: 'Tailnet and nodes',
     signIn: 'SIGN IN', loginHeading: 'Sign in to the control panel',
     loginHint: 'Continue with the administrator account. The session is shared across this domain’s services.',
@@ -107,17 +111,6 @@ export const messages = {
     sessionLife: 'Session lasts 8 hours', language: 'Language',
   },
 };
-export const LANGS = ['zh', 'en'];
-export function detectLang() {
-  try { const saved = localStorage.getItem('gateway-lang'); if (LANGS.includes(saved)) return saved; } catch {}
-  return navigator.language?.toLowerCase().startsWith('zh') ? 'zh' : 'en';
-}
-export function setLang(lang) {
-  const next = LANGS.includes(lang) ? lang : 'zh';
-  try { localStorage.setItem('gateway-lang', next); } catch {}
-  document.documentElement.lang = next === 'zh' ? 'zh-CN' : 'en';
-  return next;
-}
 export function translate(lang) {
   const dict = messages[lang] || messages.zh;
   const t = (key, values = {}) => (dict[key] ?? messages.zh[key] ?? key).replace(/\{(\w+)\}/g, (_, k) => values[k] ?? '');
