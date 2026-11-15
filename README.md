@@ -10,6 +10,8 @@ Node.js 24 原生 HTTP 控制面板，无运行时 npm 依赖。提供 mihomo、
 
 Zashboard 作为独立的 `mihomo-ui` sidecar 从官方 GHCR 镜像运行；Dashboard 镜像不包含 Zashboard。网关代理 sidecar，并只在前端 HTML 的最前面加入同源偏好脚本，不包装 fetch/WebSocket，不修改上游 API。
 
+从 Yacd 迁移后，`mihomo` 根地址会首次显示一次清理页，注销该域名的旧 Service Worker 并删除浏览器缓存。旧 Yacd 与 Zashboard 使用相同的根路径和缓存作用域；不清理时，浏览器可能在请求服务器前就返回 Yacd。Zashboard 随后继续使用自己的 PWA，清理逻辑只处理顶层 `/` 的不带 `frontend=zashboard` 的首次导航。
+
 固定上游为 mihomo `127.0.0.1:9090`、OxiDNS `127.0.0.1:9199` 和 Tailscale Unix socket。Ingress 必须保留原始 Host。客户端无法指定任意反代目标；后端凭据仅在服务器注入。
 
 ## 本地运行与镜像
@@ -58,6 +60,8 @@ Dashboard 使用非敏感的 `gateway_preferences` Cookie 共享设置，范围�
 ## 验证
 
 `npm test` 使用 `node:test`，覆盖认证、CSRF、策略组切换、偏好校验、部分降级、静态前端、压缩 JSON、WebSocket，以及浏览器默认设置与跨域偏好共享。
+
+迁移回归测试用 `node --test --test-name-pattern='legacy Yacd' test/dashboard.test.js` 单独运行；测试会绑定本地临时端口，受限沙箱中需授予监听权限。
 
 浏览器验证使用本地 Zashboard 静态构建和本地模拟后端，不修改线上策略：
 

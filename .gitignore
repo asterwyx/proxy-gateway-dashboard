@@ -8,3 +8,5 @@ coverage/
 .test-*/
 artifacts/
 vendor/zashboard/
+# Local reference assets for the retired Yacd frontend; never package them.
+vendor/yacd/
